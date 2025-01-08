@@ -1,0 +1,40 @@
+name: Retrieve Kubernetes OpenAPI Spec
+
+on:
+  workflow_dispatch:
+    inputs:
+      k8s_version:
+        description: "Kubernetes version (e.g., v1.29.0)"
+        required: true
+        default: "v1.29.0"
+
+jobs:
+  retrieve-swagger:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Install dependencies
+    - name: Install dependencies
+      run: |
+        curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        sudo install minikube-linux-amd64 /usr/local/bin/minikube
+        curl -LO "https://dl.k8s.io/release/${{ github.event.inputs.k8s_version }}/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+
+    # Step 2: Start Minikube
+    - name: Start Minikube
+      run: |
+        sudo minikube start --kubernetes-version=${{ github.event.inputs.k8s_version }} --driver=none
+
+    # Step 3: Retrieve OpenAPI spec
+    - name: Retrieve OpenAPI spec
+      run: |
+        kubectl get --raw /openapi/v2 > k8s-openapi-${{ github.event.inputs.k8s_version }}.json
+
+    # Step 4: Upload OpenAPI spec as an artifact
+    - name: Upload OpenAPI spec
+      uses: actions/upload-artifact@v3
+      with:
+        name: k8s-openapi-spec
+        path: k8s-openapi-${{ github.event.inputs.k8s_version }}.json
