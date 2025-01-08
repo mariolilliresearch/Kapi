@@ -15,16 +15,16 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Go environment
+      # Step 2: Install Go
       - name: Install Go
         run: |
-          wget https://storage.googleapis.com/golang/getgo/installer_linux
-          chmod +x ./installer_linux
-          ./installer_linux
-          source ~/.bash_profile
-          echo "Golang installed."
+          wget https://golang.org/dl/go1.20.6.linux-amd64.tar.gz
+          sudo tar -C /usr/local -xvzf go1.20.6.linux-amd64.tar.gz
+          echo "export PATH=$PATH:/usr/local/go/bin" >> $GITHUB_ENV
+          source $GITHUB_ENV
+          echo "Go installed."
 
-      # Step 3: Clone the cri-dockerd repository
+      # Step 3: Clone cri-dockerd repository
       - name: Clone cri-dockerd repository
         run: git clone https://github.com/Mirantis/cri-dockerd.git
 
