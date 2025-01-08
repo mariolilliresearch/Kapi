@@ -68,7 +68,7 @@ jobs:
       # Step 7: Start Minikube
       - name: Start Minikube
         run: |
-          sudo minikube start --kubernetes-version=v1.29.0 --driver=docker --container-runtime=docker
+          minikube start --kubernetes-version=v1.29.0 --driver=docker --container-runtime=docker
           echo "Minikube started successfully."
 
       # Step 8: Retrieve Kubernetes Swagger JSON (OpenAPI spec)
