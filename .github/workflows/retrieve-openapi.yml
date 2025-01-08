@@ -33,20 +33,29 @@ jobs:
             --service-account-issuer=https://kubernetes.default.svc.cluster.local \
             --service-account-signing-key-file=/tmp/service-account.key \
             --service-account-key-file=/tmp/service-account.pem \
-            --advertise-address=127.0.0.1
-
-      # Step 4: Wait for kube-apiserver to be ready
+            --advertise-address=127.0.0.1 \
+            --secure-port=6443
+      
+      # Step 4: Wait for kube-apiserver
       - name: Wait for kube-apiserver
         run: |
           for i in {1..30}; do
-            curl -s http://127.0.0.1:6443/healthz && break || sleep 2;
+            if curl -sf http://127.0.0.1:6443/healthz > /dev/null; then
+              echo "kube-apiserver is ready!"
+              break
+            fi
+            echo "Waiting for kube-apiserver..."
+            sleep 2
           done
-
-      # Step 5: Retrieve the OpenAPI spec
+          if ! curl -sf http://127.0.0.1:6443/healthz > /dev/null; then
+            echo "kube-apiserver failed to start."
+            exit 1
+          fi
+      
+      # Step 5: Retrieve OpenAPI Spec
       - name: Retrieve OpenAPI Spec
         run: |
           curl -s http://127.0.0.1:6443/openapi/v2 > k8s-openapi-${{ github.event.inputs.k8s_version }}.json
-
       # Step 6: Save the OpenAPI spec
       - name: Save OpenAPI Spec
         run: |
