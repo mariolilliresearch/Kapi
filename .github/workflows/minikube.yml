@@ -45,6 +45,9 @@ jobs:
         sudo mv cri-dockerd /usr/local/bin/
         rm -rf cri-dockerd-0.3.16.amd64.tgz
 
+        # Start cri-dockerd as a background service
+        sudo nohup cri-dockerd &
+
     # Step 4: Install Minikube and kubectl
     - name: Install Minikube and kubectl
       run: |
