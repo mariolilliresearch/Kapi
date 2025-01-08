@@ -1,75 +1,76 @@
 name: Retrieve Kubernetes OpenAPI Spec using minikube
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      k8s_version:
-        description: "Kubernetes version (e.g., v1.29.0)"
-        required: true
-        default: "v1.29.0"
 
 jobs:
-  retrieve-swagger:
-    runs-on: ubuntu-latest
+  build_and_run:
+    runs-on: ubuntu-22.04
 
     steps:
-    # Step 1: Install conntrack
-    - name: Install conntrack
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y conntrack
+      # Step 1: Check out the repository
+      - name: Check out code
+        uses: actions/checkout@v3
 
-    # Step 2: Install crictl (using version v1.29.0)
-    - name: Install crictl
-      run: |
-        CRICTL_VERSION="v1.29.0"
-        wget https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
-        tar -zxvf crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
-        sudo mv crictl /usr/local/bin/
-        rm -rf crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
+      # Step 2: Set up Go environment
+      - name: Install Go
+        run: |
+          wget https://storage.googleapis.com/golang/getgo/installer_linux
+          chmod +x ./installer_linux
+          ./installer_linux
+          source ~/.bash_profile
+          echo "Golang installed."
 
-    # Step 3: Install cri-dockerd (using version v0.3.16)
-    - name: Install cri-dockerd
-      run: |
-        # Install necessary dependencies
-        sudo apt-get update
-        sudo apt-get install -y \
-          lsb-release \
-          gnupg \
-          curl \
-          apt-transport-https
+      # Step 3: Clone the cri-dockerd repository
+      - name: Clone cri-dockerd repository
+        run: git clone https://github.com/Mirantis/cri-dockerd.git
 
-        # Download and install cri-dockerd v0.3.16
-        wget https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.16/cri-dockerd-0.3.16.amd64.tgz
-        tar -zxvf cri-dockerd-0.3.16.amd64.tgz
-        sudo mv cri-dockerd /usr/local/bin/
-        rm -rf cri-dockerd-0.3.16.amd64.tgz
+      # Step 4: Build cri-dockerd from source
+      - name: Build cri-dockerd
+        run: |
+          cd cri-dockerd
+          mkdir bin
+          go get && go build -o bin/cri-dockerd
+          mkdir -p /usr/local/bin
+          install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
+          echo "cri-dockerd built successfully."
 
-        # Start cri-dockerd as a background service
-        sudo nohup cri-dockerd &
+      # Step 5: Set up systemd for cri-dockerd
+      - name: Set up systemd for cri-dockerd
+        run: |
+          cp -a cri-dockerd/packaging/systemd/* /etc/systemd/system
+          sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+          systemctl daemon-reload
+          systemctl enable cri-docker.service
+          systemctl enable --now cri-docker.socket
+          echo "cri-dockerd systemd configuration set."
 
-    # Step 4: Install Minikube and kubectl
-    - name: Install Minikube and kubectl
-      run: |
-        curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
-        sudo install minikube-linux-amd64 /usr/local/bin/minikube
-        curl -LO "https://dl.k8s.io/release/${{ github.event.inputs.k8s_version }}/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        sudo mv kubectl /usr/local/bin/
+      # Step 6: Install Docker
+      - name: Install Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker.io
+          sudo systemctl enable --now docker
+          echo "Docker installed and started."
 
-    # Step 5: Start Minikube with the none driver and Docker container-runtime
-    - name: Start Minikube
-      run: |
-        sudo minikube start --kubernetes-version=${{ github.event.inputs.k8s_version }} --driver=none --container-runtime=docker
+      # Step 7: Start Minikube
+      - name: Start Minikube
+        run: |
+          sudo minikube start --kubernetes-version=v1.29.0 --driver=none --container-runtime=docker
+          echo "Minikube started successfully."
 
-    # Step 6: Retrieve OpenAPI spec
-    - name: Retrieve OpenAPI spec
-      run: |
-        kubectl get --raw /openapi/v2 > k8s-openapi-${{ github.event.inputs.k8s_version }}.json
+      # Step 8: Retrieve Kubernetes Swagger JSON (OpenAPI spec)
+      - name: Retrieve Kubernetes Swagger JSON
+        run: |
+          kubectl get --raw /openapi/v2 > k8s-openapi-v1.29.0.json
+          echo "Swagger JSON retrieved successfully."
 
-    # Step 7: Upload OpenAPI spec as an artifact
-    - name: Upload OpenAPI spec
-      uses: actions/upload-artifact@v3
-      with:
-        name: k8s-openapi-spec
-        path: k8s-openapi-${{ github.event.inputs.k8s_version }}.json
+      # Step 9: Upload Swagger JSON as an artifact
+      - name: Upload Swagger JSON Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: k8s-openapi-v1.29.0.json
+          path: k8s-openapi-v1.29.0.json
