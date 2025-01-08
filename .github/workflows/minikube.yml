@@ -1,4 +1,4 @@
-name: Retrieve Kubernetes OpenAPI Spec
+name: Retrieve Kubernetes OpenAPI Spec using minikube
 
 on:
   workflow_dispatch:
@@ -13,8 +13,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Install dependencies
-    - name: Install dependencies
+    # Step 1: Install conntrack
+    - name: Install conntrack
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y conntrack
+
+    # Step 2: Install Minikube and kubectl
+    - name: Install Minikube and kubectl
       run: |
         curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
         sudo install minikube-linux-amd64 /usr/local/bin/minikube
@@ -22,17 +28,17 @@ jobs:
         chmod +x kubectl
         sudo mv kubectl /usr/local/bin/
 
-    # Step 2: Start Minikube
+    # Step 3: Start Minikube
     - name: Start Minikube
       run: |
         sudo minikube start --kubernetes-version=${{ github.event.inputs.k8s_version }} --driver=none
 
-    # Step 3: Retrieve OpenAPI spec
+    # Step 4: Retrieve OpenAPI spec
     - name: Retrieve OpenAPI spec
       run: |
         kubectl get --raw /openapi/v2 > k8s-openapi-${{ github.event.inputs.k8s_version }}.json
 
-    # Step 4: Upload OpenAPI spec as an artifact
+    # Step 5: Upload OpenAPI spec as an artifact
     - name: Upload OpenAPI spec
       uses: actions/upload-artifact@v3
       with:
