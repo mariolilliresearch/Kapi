@@ -48,13 +48,15 @@ jobs:
           sudo systemctl enable --now cri-docker.socket
           echo "cri-dockerd systemd configuration set."
 
-      # Step 6: Install Docker
-      - name: Install Docker
+      # Step 6: Install Docker and containerd
+      - name: Install Docker and containerd
         run: |
+          # Remove the existing containerd package if it exists
+          sudo apt-get remove --purge -y containerd
           sudo apt-get update
-          sudo apt-get install -y docker.io
+          sudo apt-get install -y containerd.io docker.io
           sudo systemctl enable --now docker
-          echo "Docker installed and started."
+          echo "Docker and containerd installed and started."
 
       # Step 7: Start Minikube
       - name: Start Minikube
