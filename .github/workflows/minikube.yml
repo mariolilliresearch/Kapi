@@ -51,9 +51,13 @@ jobs:
       # Step 6: Install Docker and containerd
       - name: Install Docker and containerd
         run: |
-          # Remove the existing containerd package if it exists
+          # Remove any conflicting 'containerd' package
           sudo apt-get remove --purge -y containerd
+          # Clean up residual packages and dependencies
+          sudo apt-get autoremove -y
+          sudo apt-get clean
           sudo apt-get update
+          # Install 'containerd.io' and Docker
           sudo apt-get install -y containerd.io docker.io
           sudo systemctl enable --now docker
           echo "Docker and containerd installed and started."
