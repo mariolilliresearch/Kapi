@@ -19,14 +19,14 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y conntrack
 
-    # Step 2: Install crictl
+    # Step 2: Install crictl (using version v1.29.0)
     - name: Install crictl
       run: |
         CRICTL_VERSION="v1.29.0"
-        wget https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-v1.29.0-darwin-amd64.tar.gz
-        tar -zxvf crictl-$(uname -s)-$(uname -m).tar.gz
+        wget https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
+        tar -zxvf crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
         sudo mv crictl /usr/local/bin/
-        rm -rf crictl-$(uname -s)-$(uname -m).tar.gz
+        rm -rf crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
 
     # Step 3: Install Minikube and kubectl
     - name: Install Minikube and kubectl
