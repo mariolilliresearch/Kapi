@@ -52,14 +52,17 @@ jobs:
       - name: Install Docker and containerd
         run: |
           # Remove any conflicting 'containerd' package
-          sudo apt-get remove --purge -y containerd
+          sudo apt-get remove containerd.io
+          sudo apt install docker.io docker-compose -y
+
           # Clean up residual packages and dependencies
           sudo apt-get autoremove -y
           sudo apt-get clean
           sudo apt-get update
-          # Install 'containerd.io' and Docker
-          sudo apt-get install -y containerd.io docker.io
+          
+          # Run docker
           sudo systemctl enable --now docker
+          sudo gpasswd -a $USER docker
           echo "Docker and containerd installed and started."
 
       # Step 7: Start Minikube
