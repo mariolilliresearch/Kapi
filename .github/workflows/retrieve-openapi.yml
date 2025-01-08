@@ -17,13 +17,35 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Step 2: Start etcd
-      # Step 2: Start etcd
+     # Step 1: Start etcd
       - name: Start etcd
         run: |
           docker run -d --name etcd --network=host -e ALLOW_NONE_AUTHENTICATION=yes bitnami/etcd:3.5.9
-
-      # Step 3: Run kube-apiserver for the specified version
+      
+      # Step 2: Verify etcd health
+      - name: Verify etcd health
+        run: |
+          for i in {1..10}; do
+            if curl -sf http://127.0.0.1:2379/health > /dev/null; then
+              echo "etcd is healthy"
+              break
+            fi
+            echo "Waiting for etcd..."
+            sleep 2
+          done
+          if ! curl -sf http://127.0.0.1:2379/health > /dev/null; then
+            echo "etcd failed to start"
+            exit 1
+          fi
+      
+      # Step 3: Generate service account keys
+      - name: Generate service account keys
+        run: |
+          mkdir -p /tmp
+          openssl genrsa -out /tmp/service-account.key 2048
+          openssl rsa -in /tmp/service-account.key -pubout -out /tmp/service-account.pem
+      
+      # Step 4: Start kube-apiserver
       - name: Start kube-apiserver
         run: |
           docker run -d --name kube-apiserver --network=host \
@@ -36,7 +58,7 @@ jobs:
             --advertise-address=127.0.0.1 \
             --secure-port=6443
       
-      # Step 4: Wait for kube-apiserver
+      # Step 5: Wait for kube-apiserver
       - name: Wait for kube-apiserver
         run: |
           for i in {1..30}; do
@@ -52,19 +74,12 @@ jobs:
             exit 1
           fi
       
-      # Step 5: Retrieve OpenAPI Spec
+      # Step 6: Retrieve OpenAPI Spec
       - name: Retrieve OpenAPI Spec
         run: |
           curl -s http://127.0.0.1:6443/openapi/v2 > k8s-openapi-${{ github.event.inputs.k8s_version }}.json
-      # Step 6: Save the OpenAPI spec
-      - name: Save OpenAPI Spec
-        run: |
-          mkdir -p kubernetes-specs
-          mv k8s-openapi-${{ github.event.inputs.k8s_version }}.json kubernetes-specs/
-
-      # Step 7: Commit and push the file (if applicable)
-      - name: Commit and Push
-        uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: "Add OpenAPI spec for Kubernetes ${{ github.event.inputs.k8s_version }}"
-          branch: main
+      
+      # Step 7: Debug kube-apiserver logs (on failure)
+      - name: Debug kube-apiserver logs
+        if: failure()
+        run: docker logs kube-apiserver
