@@ -28,7 +28,7 @@ jobs:
         sudo mv crictl /usr/local/bin/
         rm -rf crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
 
-    # Step 3: Install cri-dockerd (for Docker container-runtime)
+    # Step 3: Install cri-dockerd (using version v0.3.16)
     - name: Install cri-dockerd
       run: |
         # Install necessary dependencies
@@ -39,12 +39,11 @@ jobs:
           curl \
           apt-transport-https
 
-        # Download and install cri-dockerd
-        VERSION="v0.2.5"  # Specify a stable release version
-        wget https://github.com/Mirantis/cri-dockerd/releases/download/${VERSION}/cri-dockerd-${VERSION}-amd64.tar.gz
-        tar -zxvf cri-dockerd-${VERSION}-amd64.tar.gz
+        # Download and install cri-dockerd v0.3.16
+        wget https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.16/cri-dockerd-0.3.16.amd64.tgz
+        tar -zxvf cri-dockerd-0.3.16.amd64.tgz
         sudo mv cri-dockerd /usr/local/bin/
-        rm -rf cri-dockerd-${VERSION}-amd64.tar.gz
+        rm -rf cri-dockerd-0.3.16.amd64.tgz
 
     # Step 4: Install Minikube and kubectl
     - name: Install Minikube and kubectl
