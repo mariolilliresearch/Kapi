@@ -28,7 +28,25 @@ jobs:
         sudo mv crictl /usr/local/bin/
         rm -rf crictl-${CRICTL_VERSION}-linux-amd64.tar.gz
 
-    # Step 3: Install Minikube and kubectl
+    # Step 3: Install cri-dockerd (for Docker container-runtime)
+    - name: Install cri-dockerd
+      run: |
+        # Install necessary dependencies
+        sudo apt-get update
+        sudo apt-get install -y \
+          lsb-release \
+          gnupg \
+          curl \
+          apt-transport-https
+
+        # Download and install cri-dockerd
+        VERSION="v0.2.5"  # Specify a stable release version
+        wget https://github.com/Mirantis/cri-dockerd/releases/download/${VERSION}/cri-dockerd-${VERSION}-amd64.tar.gz
+        tar -zxvf cri-dockerd-${VERSION}-amd64.tar.gz
+        sudo mv cri-dockerd /usr/local/bin/
+        rm -rf cri-dockerd-${VERSION}-amd64.tar.gz
+
+    # Step 4: Install Minikube and kubectl
     - name: Install Minikube and kubectl
       run: |
         curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
@@ -37,17 +55,17 @@ jobs:
         chmod +x kubectl
         sudo mv kubectl /usr/local/bin/
 
-    # Step 4: Start Minikube
+    # Step 5: Start Minikube with the none driver and Docker container-runtime
     - name: Start Minikube
       run: |
-        sudo minikube start --kubernetes-version=${{ github.event.inputs.k8s_version }} --driver=none
+        sudo minikube start --kubernetes-version=${{ github.event.inputs.k8s_version }} --driver=none --container-runtime=docker
 
-    # Step 5: Retrieve OpenAPI spec
+    # Step 6: Retrieve OpenAPI spec
     - name: Retrieve OpenAPI spec
       run: |
         kubectl get --raw /openapi/v2 > k8s-openapi-${{ github.event.inputs.k8s_version }}.json
 
-    # Step 6: Upload OpenAPI spec as an artifact
+    # Step 7: Upload OpenAPI spec as an artifact
     - name: Upload OpenAPI spec
       uses: actions/upload-artifact@v3
       with:
