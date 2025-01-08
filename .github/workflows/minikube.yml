@@ -19,7 +19,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y conntrack
 
-    # Step 2: Install Minikube and kubectl
+    # Step 2: Install crictl
+    - name: Install crictl
+      run: |
+        CRICTL_VERSION="v1.29.0"
+        wget https://github.com/kubernetes-sigs/cri-tools/releases/download/${CRICTL_VERSION}/crictl-$(uname -s)-$(uname -m).tar.gz
+        tar -zxvf crictl-$(uname -s)-$(uname -m).tar.gz
+        sudo mv crictl /usr/local/bin/
+        rm -rf crictl-$(uname -s)-$(uname -m).tar.gz
+
+    # Step 3: Install Minikube and kubectl
     - name: Install Minikube and kubectl
       run: |
         curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
@@ -28,17 +37,17 @@ jobs:
         chmod +x kubectl
         sudo mv kubectl /usr/local/bin/
 
-    # Step 3: Start Minikube
+    # Step 4: Start Minikube
     - name: Start Minikube
       run: |
         sudo minikube start --kubernetes-version=${{ github.event.inputs.k8s_version }} --driver=none
 
-    # Step 4: Retrieve OpenAPI spec
+    # Step 5: Retrieve OpenAPI spec
     - name: Retrieve OpenAPI spec
       run: |
         kubectl get --raw /openapi/v2 > k8s-openapi-${{ github.event.inputs.k8s_version }}.json
 
-    # Step 5: Upload OpenAPI spec as an artifact
+    # Step 6: Upload OpenAPI spec as an artifact
     - name: Upload OpenAPI spec
       uses: actions/upload-artifact@v3
       with:
