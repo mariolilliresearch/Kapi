@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      kubernetes_version:
+        description: "Kubernetes Version"
+        required: true
+        default: "v1.29.0"
+      go_version:
+        description: "Go Version"
+        required: true
+        default: "go1.20.6"
 
 jobs:
   build_and_run:
@@ -17,9 +26,11 @@ jobs:
 
       # Step 2: Install Go
       - name: Install Go
+        env:
+          GO_VERSION: ${{ github.event.inputs.go_version }}
         run: |
-          wget https://golang.org/dl/go1.20.6.linux-amd64.tar.gz
-          sudo tar -C /usr/local -xvzf go1.20.6.linux-amd64.tar.gz
+          wget https://golang.org/dl/${GO_VERSION}.linux-amd64.tar.gz
+          sudo tar -C /usr/local -xvzf ${GO_VERSION}.linux-amd64.tar.gz
           echo "export PATH=$PATH:/usr/local/go/bin" >> $GITHUB_ENV
           source $GITHUB_ENV
           echo "Go installed."
@@ -59,7 +70,7 @@ jobs:
           sudo apt-get autoremove -y
           sudo apt-get clean
           sudo apt-get update
-          
+
           # Run docker
           sudo systemctl enable --now docker
           sudo gpasswd -a $USER docker
@@ -67,19 +78,21 @@ jobs:
 
       # Step 7: Start Minikube
       - name: Start Minikube
+        env:
+          K8S_VERSION: ${{ github.event.inputs.kubernetes_version }}
         run: |
-          minikube start --kubernetes-version=v1.29.0 --driver=docker --container-runtime=docker
+          minikube start --kubernetes-version=${K8S_VERSION} --driver=docker --container-runtime=docker
           echo "Minikube started successfully."
 
       # Step 8: Retrieve Kubernetes Swagger JSON (OpenAPI spec)
       - name: Retrieve Kubernetes Swagger JSON
         run: |
-          kubectl get --raw /openapi/v2 > k8s-openapi-v1.29.0.json
+          kubectl get --raw /openapi/v2 > k8s-openapi-${{ github.event.inputs.kubernetes_version }}.json
           echo "Swagger JSON retrieved successfully."
 
       # Step 9: Upload Swagger JSON as an artifact
       - name: Upload Swagger JSON Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: k8s-openapi-v1.29.0.json
-          path: k8s-openapi-v1.29.0.json
+          name: k8s-openapi-${{ github.event.inputs.kubernetes_version }}.json
+          path: k8s-openapi-${{ github.event.inputs.kubernetes_version }}.json
