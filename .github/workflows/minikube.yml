@@ -3,7 +3,7 @@ name: Retrieve Kubernetes OpenAPI Spec using minikube
 on:
   push:
     branches:
-      - main
+      - main # specify which branch you want to watch for changes
   workflow_dispatch:
     inputs:
       kubernetes_version:
@@ -14,6 +14,8 @@ on:
         description: "Go Version"
         required: true
         default: "go1.20.6"
+  schedule:
+    - cron: "0 0 * * *" # Runs every week at midnight (UTC)
 
 jobs:
   build_and_run:
@@ -23,6 +25,8 @@ jobs:
       # Step 1: Check out the repository
       - name: Check out code
         uses: actions/checkout@v3
+        with:
+          ref: main # Specify branch/tag here, e.g., 'main', or a specific tag like 'v1.0.0'
 
       # Step 2: Install Go
       - name: Install Go
