@@ -70,33 +70,46 @@ jobs:
           sudo apt-get remove containerd.io
           sudo apt install docker.io docker-compose -y
 
-          # Clean up residual packages and dependencies
-          sudo apt-get autoremove -y
-          sudo apt-get clean
-          sudo apt-get update
+          # Clean up residual packages
+          sudo apt autoremove -y
 
-          # Run docker
-          sudo systemctl enable --now docker
-          sudo gpasswd -a $USER docker
-          echo "Docker and containerd installed and started."
+          echo "Docker and Containerd installed."
 
-      # Step 7: Start Minikube
+      # Step 7: Start minikube with the specified Kubernetes version
       - name: Start Minikube
         env:
-          K8S_VERSION: ${{ github.event.inputs.kubernetes_version }}
+          KUBERNETES_VERSION: ${{ github.event.inputs.kubernetes_version }}
         run: |
-          minikube start --kubernetes-version=${K8S_VERSION} --driver=docker --container-runtime=docker
-          echo "Minikube started successfully."
+          sudo apt update && sudo apt install curl -y
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
 
-      # Step 8: Retrieve Kubernetes Swagger JSON (OpenAPI spec)
-      - name: Retrieve Kubernetes Swagger JSON
+          # Start Minikube with the specified Kubernetes version
+          minikube start --kubernetes-version=${KUBERNETES_VERSION} --driver=docker
+
+      # Step 8: Retrieve OpenAPI spec from the cluster
+      - name: Get OpenAPI Spec
+        env:
+          KUBERNETES_VERSION: ${{ github.event.inputs.kubernetes_version }}
         run: |
-          kubectl get --raw /openapi/v2 > k8s-openapi-${{ github.event.inputs.kubernetes_version }}.json
-          echo "Swagger JSON retrieved successfully."
+          kubectl get --raw=/openapi/v2 > k8s-openapi-${KUBERNETES_VERSION}.json
 
-      # Step 9: Upload Swagger JSON as an artifact
-      - name: Upload Swagger JSON Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: k8s-openapi-${{ github.event.inputs.kubernetes_version }}.json
-          path: k8s-openapi-${{ github.event.inputs.kubernetes_version }}.json
+      # Step 9: Create a folder named after the Kubernetes version
+      - name: Create Versioned Directory and Move File
+        env:
+          KUBERNETES_VERSION: ${{ github.event.inputs.kubernetes_version }}
+        run: |
+          mkdir -p ${KUBERNETES_VERSION}
+          mv k8s-openapi-${KUBERNETES_VERSION}.json ${KUBERNETES_VERSION}/
+
+      # Step 10: Commit and Push the Changes
+      - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KUBERNETES_VERSION: ${{ github.event.inputs.kubernetes_version }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ${KUBERNETES_VERSION}/
+          git commit -m "Add OpenAPI spec for Kubernetes version ${KUBERNETES_VERSION}"
+          git push
