@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubernetes-version: [v1.32.1, v1.31.5, v1.30.9]
+        kubernetes-version: [v1.32.1, v1.31.5, v1.30.8]
 
     steps:
       # Step 1: Check out the repository
