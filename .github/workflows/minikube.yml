@@ -1,9 +1,6 @@
 name: Retrieve Kubernetes OpenAPI Spec using minikube
 
 on:
-  push:
-    branches:
-      - main # specify which branch you want to watch for changes
   workflow_dispatch:
     inputs:
       go_version:
