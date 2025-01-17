@@ -6,27 +6,22 @@ on:
       - main # specify which branch you want to watch for changes
   workflow_dispatch:
     inputs:
-      kubernetes_version:
-        description: "Kubernetes Version"
-        required: true
-        default: "v1.29.0"
       go_version:
         description: "Go Version"
         required: true
         default: "go1.20.6"
-  schedule:
-    - cron: "0 0 * * *" # Runs every week at midnight (UTC)
 
 jobs:
   build_and_run:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        kubernetes-version: [v1.32.1, v1.31.5, v1.30.9]
 
     steps:
       # Step 1: Check out the repository
       - name: Check out code
         uses: actions/checkout@v3
-        with:
-          ref: main # Specify branch/tag here, e.g., 'main', or a specific tag like 'v1.0.0'
 
       # Step 2: Install Go
       - name: Install Go
@@ -66,19 +61,17 @@ jobs:
       # Step 6: Install Docker and containerd
       - name: Install Docker and containerd
         run: |
-          # Remove any conflicting 'containerd' package
           sudo apt-get remove containerd.io
           sudo apt install docker.io docker-compose -y
 
           # Clean up residual packages
           sudo apt autoremove -y
-
           echo "Docker and Containerd installed."
 
       # Step 7: Start minikube with the specified Kubernetes version
       - name: Start Minikube
         env:
-          KUBERNETES_VERSION: ${{ github.event.inputs.kubernetes_version }}
+          KUBERNETES_VERSION: ${{ matrix.kubernetes-version }}
         run: |
           sudo apt update && sudo apt install curl -y
           curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
@@ -90,26 +83,26 @@ jobs:
       # Step 8: Retrieve OpenAPI spec from the cluster
       - name: Get OpenAPI Spec
         env:
-          KUBERNETES_VERSION: ${{ github.event.inputs.kubernetes_version }}
+          KUBERNETES_VERSION: ${{ matrix.kubernetes-version }}
         run: |
           kubectl get --raw=/openapi/v2 > k8s-openapi-${KUBERNETES_VERSION}.json
 
-      # Step 9: Create a folder named after the Kubernetes version
-      - name: Create Versioned Directory and Move File
-        env:
-          KUBERNETES_VERSION: ${{ github.event.inputs.kubernetes_version }}
-        run: |
-          mkdir -p ${KUBERNETES_VERSION}
-          mv k8s-openapi-${KUBERNETES_VERSION}.json ${KUBERNETES_VERSION}/
-
-      # Step 10: Commit and Push the Changes
+      # Step 9: Commit and push changes
       - name: Commit and push changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KUBERNETES_VERSION: ${{ github.event.inputs.kubernetes_version }}
+          KUBERNETES_VERSION: ${{ matrix.kubernetes-version }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add ${KUBERNETES_VERSION}/
+          git add k8s-openapi-${KUBERNETES_VERSION}.json
           git commit -m "Add OpenAPI spec for Kubernetes version ${KUBERNETES_VERSION}"
           git push
+
+      # Step 10: Cleanup minikube
+      - name: Stop and delete Minikube cluster
+        env:
+          KUBERNETES_VERSION: ${{ matrix.kubernetes-version }}
+        run: |
+          minikube stop
+          minikube delete --all
