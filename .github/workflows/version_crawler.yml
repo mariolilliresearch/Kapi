@@ -30,24 +30,22 @@ jobs:
         run: |
           workflow_file=".github/workflows/minikube.yml"
           updated_versions=$(echo "[${{ env.versions }}]" | sed 's/,/\", \"/g')
-          sed -i 's/\(kubernetes-version:\s*\)\[.*\]/\1'"$updated_versions"'/' $workflow_file
+          sed -i '' 's/\(kubernetes-version:\s*\)\[.*\]/\1'"$updated_versions"'/' $workflow_file
 
       - name: Sync .github/workflows files from main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH_NAME="update-workflows-$(date +'%Y%m%d%H%M%S')"
-          COMMIT_SHA=$(git rev-parse HEAD)
+          COMMIT_SHA=$(git rev-parse origin/main)
           ROOT_DIR=$(pwd)
 
-          git checkout $COMMIT_SHA
-          git switch --create $BRANCH_NAME
-          git checkout origin/main -- $ROOT_DIR/.github/workflows
+          git checkout origin/main # Ensure we're on the main branch
+          git switch -c $BRANCH_NAME
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add $ROOT_DIR/.github/workflows
-          git commit -m "chore: sync .github/workflows files from main branch"
-          git push origin $BRANCH_NAME
+          git commit -m "chore: sync .github/workflows files from main branch" || true # Skip if nothing to commit
 
       - name: Create Pull Request for Workflow Sync
         uses: peter-evans/create-pull-request@v5
