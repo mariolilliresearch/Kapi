@@ -29,8 +29,8 @@ jobs:
       - name: Update matrix in workflow file
         run: |
           workflow_file=".github/workflows/minikube.yml"
-          updated_versions=$(echo "[${{ env.versions }}]" | sed 's/,/\", \"/g')
-          sed -i '' 's/\(kubernetes-version:\s*\)\[.*\]/\1'"$updated_versions"'/' $workflow_file
+          updated_versions=$(echo "[${{ env.versions }}]" | sed 's/,/", "/g')
+          sed -i 's/\(kubernetes-version:\s*\)\[.*\]/\1'"$updated_versions"'/' $workflow_file
 
       - name: Sync .github/workflows files from main
         env:
