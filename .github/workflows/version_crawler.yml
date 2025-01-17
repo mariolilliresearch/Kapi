@@ -29,12 +29,14 @@ jobs:
           sed -i 's/\(kubernetes-version:\s*\)\[.*\]/\1'"$updated_versions"'/' $workflow_file
 
       - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           git add .github/workflows/minikube.yml
-          git commit -m "Update workflow"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git commit -m "Update versions api, new list $updated_versions"
+          git push origin main
 
       - name: Trigger downstream workflow
         run: |
