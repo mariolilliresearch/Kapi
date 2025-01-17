@@ -30,13 +30,11 @@ jobs:
 
       - name: Commit and push changes
         run: |
-          - name: Commit and push changes
-            run: |
-              git config --global user.name "github-actions[bot]"
-              git config --global user.email "github-actions[bot]@users.noreply.github.com"
-              git add .github/workflows/minikube.yml
-              git commit -m "Update workflow"
-              git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/minikube.yml
+          git commit -m "Update workflow"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Trigger downstream workflow
         run: |
