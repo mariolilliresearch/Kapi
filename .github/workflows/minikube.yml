@@ -80,29 +80,32 @@ jobs:
           # Start Minikube with the specified Kubernetes version
           minikube start --kubernetes-version=${KUBERNETES_VERSION} --driver=docker
 
-      # Step 8: Retrieve OpenAPI spec from the cluster
+      # Step 8: Retrieve OpenAPI spec from the cluster and store in a version-specific directory
       - name: Get OpenAPI Spec
         env:
           KUBERNETES_VERSION: ${{ matrix.kubernetes-version }}
         run: |
-          kubectl get --raw=/openapi/v2 > k8s-openapi-${KUBERNETES_VERSION}.json
+          mkdir -p openapi/${KUBERNETES_VERSION}
+          kubectl get --raw /openapi/v2 > openapi/${KUBERNETES_VERSION}/spec.json
 
-      # Step 9: Commit and push changes
-      - name: Commit and push changes
+      # Step 9: Ensure the local repository is up-to-date
+      - name: Pull latest changes from remote
+        run: |
+          git pull origin main
+
+      # Step 10: Commit and push changes to the repository
+      - name: Commit and Push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KUBERNETES_VERSION: ${{ matrix.kubernetes-version }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add k8s-openapi-${KUBERNETES_VERSION}.json
-          git commit -m "Add OpenAPI spec for Kubernetes version ${KUBERNETES_VERSION}"
-          git push
+          git add ${{ matrix.kubernetes-version }}/spec.json
+          git commit -m "Add OpenAPI spec for Kubernetes version ${{ matrix.kubernetes-version }}"
+          git push origin main
 
-      # Step 10: Cleanup minikube
+      # Step 11: Clean up after the job is done
       - name: Stop and delete Minikube cluster
-        env:
-          KUBERNETES_VERSION: ${{ matrix.kubernetes-version }}
         run: |
           minikube stop
           minikube delete --all
