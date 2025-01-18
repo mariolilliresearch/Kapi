@@ -59,6 +59,62 @@ jobs:
           # Write the JSON object to GITHUB_OUTPUT
           echo "versions_array=$final_output" >> $GITHUB_OUTPUT
 
+  check_and_update_versions:
+    needs: fetch-versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Fetch and process versions from previous job
+        id: fetch_and_compare_versions
+        run: |
+          # Extract versions from the previous job output.
+          echo "${{ needs.fetch-versions.outputs.versions_list }}" > version_input.json
+          latest_versions=$(jq -r '.["kubernetes-version"] | map(select(. != null))' version_input.json)
+
+          # List directories on GitHub that represent Kubernetes versions.
+          current_versions=$(ls -1d [v]*/ | tr '\n' ' ')
+
+          # Debugging information to inspect the variables
+          echo "Latest fetched versions: $latest_versions"
+          echo "Current repository folders: $current_versions"
+
+          # Function to determine if a version is newer than another
+          isNewerVersion() {
+            [[ $(printf "%s\n%s" "$2" "$1" | sort -V | head -n 1) == "$2" ]]
+          }
+
+          for fetched_version in $latest_versions; do
+              fetched_version=${fetched_version:1} # Remove the leading "v"
+              if ! echo "$current_versions" | grep -qF "/$fetched_version/"; then
+                  # Check and delete previous versions if a newer version is present
+                  found_old=false
+                  for current_version in $current_versions; do
+                      current_version=${current_version:1:-1} # Remove the leading "v" and trailing "/"
+                      if isNewerVersion "$fetched_version" "$current_version"; then
+                          rm -rf "$current_version"
+                          echo "Removed older version directory: $current_version"
+                          found_old=true
+                      fi
+                  done
+
+                  # If no previous versions were newer, move the oldest to deprecated
+                  if [ "$found_old" = false ]; then
+                      oldest_version=$(printf "%s\n" ${current_versions} | sort -V | head -n 1)
+                      oldest_version=${oldest_version:1:-1}
+                      mv "$oldest_version" "deprecated/$oldest_version"
+                      echo "Moved the oldest version directory to deprecated: $oldest_version"
+                  fi
+              else
+                  # If the version already exists, consider updating logic as needed
+                  echo "Version $fetched_version already present in repository."
+              fi
+          done
+
   build_and_run:
     needs: fetch-versions
     runs-on: ubuntu-22.04
