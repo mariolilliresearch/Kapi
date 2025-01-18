@@ -20,44 +20,43 @@ jobs:
         run: sudo apt-get install -y jq
 
       - name: Fetch and process versions
-        env:
-          GITHUB_OUTPUT: ${{ github.step_summary }}
         run: |
-          #!/bin/bash
-
           # Fetch the list of releases
           versions=$(curl -s https://api.github.com/repos/kubernetes/kubernetes/releases \
                   | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \
                   | grep '^v[0-9]\+\.[0-9]\+' | head -3)
 
-          # Print the versions for debugging
+          # Fallback if no versions are fetched
+          if [[ -z "$versions" ]]; then
+            echo "No versions fetched, setting default values."
+            versions="v1.28.2 v1.27.5 v1.26.9"
+          fi
+
+          # Debugging
           echo "Fetched versions: $versions"
 
-          # Write to GITHUB_OUTPUT in correct format (remove newlines)
-          echo "versions=$(echo "$versions" | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
-
-          # Store versions in a file for further processing
+          # Write to versions.txt for debugging
           echo "$versions" > versions.txt
 
           # Convert newline-separated list to JSON array
           mapfile -t version_array < versions.txt
           json_array=$(printf '%s\n' "${version_array[@]}" | jq -R . | jq -s .)
-          echo "Converted JSON Array: $json_array"
 
-          # Write the JSON array back to GITHUB_OUTPUT (remove newlines and spaces)
-          echo "versions_array=$(echo "$json_array" | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+          # Validate JSON array
+          echo "$json_array" | jq . || { echo "Error: Invalid JSON array"; exit 1; }
 
-      - name: Debug GITHUB_OUTPUT
+          # Write the JSON array to GITHUB_ENV
+          echo "versions_array=$json_array" >> $GITHUB_ENV
+
+      - name: Debug versions_array
         run: |
-          echo "Contents of versions.txt:"
-          cat versions.txt || echo "versions.txt not found"
-          echo "GITHUB_OUTPUT contents:"
-          cat $GITHUB_OUTPUT || echo "GITHUB_OUTPUT not found"
+          echo "Versions Array: ${{ env.versions_array }}"
+
   build_and_run:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubernetes-version: ${{fromJson(needs.fetch-versions.outputs.versions_array)}}
+        kubernetes-version: ${{ fromJson(env.versions_array) }}
 
     steps:
       # Step 1: Check out the repository
