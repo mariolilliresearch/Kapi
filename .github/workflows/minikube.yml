@@ -13,18 +13,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up jq
-        run: |
-          sudo apt-get update && sudo apt-get install -y jq
+      - name: Install jq
+        run: sudo apt-get install -y jq
 
       - name: Fetch and process versions
-        shell: bash -e {0}
         env:
-          GITHUB_OUTPUT: ${{ github.output }}
+          GITHUB_OUTPUT: ${{ github.step_summary }}
         run: |
+          #!/bin/bash
+
           # Fetch the list of releases
           versions=$(curl -s https://api.github.com/repos/kubernetes/kubernetes/releases \
                   | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \
@@ -33,8 +33,8 @@ jobs:
           # Print the versions for debugging
           echo "Fetched versions: $versions"
 
-          # Write to GITHUB_OUTPUT in correct format
-          echo "versions=${versions//[$'\t\r\n ']/}" >> "$GITHUB_OUTPUT"
+          # Write to GITHUB_OUTPUT in correct format (remove newlines)
+          echo "versions=$(echo "$versions" | tr '\n' ' ')" >> "$GITHUB_OUTPUT"
 
           # Store versions in a file for further processing
           echo "$versions" > versions.txt
@@ -44,8 +44,8 @@ jobs:
           json_array=$(printf '%s\n' "${version_array[@]}" | jq -R . | jq -s .)
           echo "Converted JSON Array: $json_array"
 
-          # Write the JSON array back to GITHUB_OUTPUT
-          echo "versions_array=${json_array//[$'\t\r\n ']/}" >> "$GITHUB_OUTPUT"
+          # Write the JSON array back to GITHUB_OUTPUT (remove newlines and spaces)
+          echo "versions_array=$(echo "$json_array" | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
 
   build_and_run:
     runs-on: ubuntu-22.04
