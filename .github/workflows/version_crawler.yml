@@ -37,15 +37,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH_NAME="update-workflows-$(date +'%Y%m%d%H%M%S')"
-          COMMIT_SHA=$(git rev-parse origin/main)
           ROOT_DIR=$(pwd)
 
-          git checkout origin/main # Ensure we're on the main branch
-          git switch -c $BRANCH_NAME
+          git checkout -b $BRANCH_NAME # Create and check out the new branch directly
+
+          # No need for a reset here, just ensure you're on your newly created branch
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+
+          # Add workflows changes and commit
           git add $ROOT_DIR/.github/workflows
-          git commit -m "chore: sync .github/workflows files from main branch" || true # Skip if nothing to commit
+          git commit -m "chore: sync .github/workflows files from main branch" || true
 
       - name: Create Pull Request for Workflow Sync
         uses: peter-evans/create-pull-request@v5
