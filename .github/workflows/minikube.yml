@@ -18,16 +18,16 @@ jobs:
         id: set_versions
         run: |
           versions=$(curl -s https://api.github.com/repos/kubernetes/kubernetes/releases \
-            | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \
-            | grep '^v[0-9]\+\.[0-9]\+' | head -3 | jq -R -s -c 'split("\n")[:-1]')
-          echo "Fetched versions: $versions"
-          echo "::set-output name=versions::$versions"
+                | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \
+                | grep '^v[0-9]\+\.[0-9]\+' | head -3 | xargs)
+          echo "versions=$(echo $versions | sed 's/ /,/g')" >> $GITHUB_ENV
+          updated_versions=$(echo "[${{ env.versions }}]" | sed 's/,/", "/g')
 
   build_and_run:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubernetes-version: ${{ fromJson(needs.fetch_versions.outputs.versions) }}
+        kubernetes-version: ${{ updated_versions }}
 
     steps:
       # Step 1: Check out the repository
