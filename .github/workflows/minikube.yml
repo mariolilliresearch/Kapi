@@ -55,6 +55,7 @@ jobs:
 
           # Write the JSON array to GITHUB_OUTPUT
           echo "versions_array=$json_array" >> $GITHUB_OUTPUT
+          echo "$GITHUB_OUTPUT"
 
   build_and_run:
     runs-on: ubuntu-22.04
