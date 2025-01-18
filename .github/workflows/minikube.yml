@@ -9,11 +9,25 @@ on:
         default: "go1.20.6"
 
 jobs:
+  fetch_versions:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.set_versions.outputs.versions }}
+    steps:
+      - name: Fetch latest Kubernetes versions
+        id: set_versions
+        run: |
+          versions=$(curl -s https://api.github.com/repos/kubernetes/kubernetes/releases \
+            | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \
+            | grep '^v[0-9]\+\.[0-9]\+' | head -3 | jq -R -s -c 'split("\n")[:-1]')
+          echo "Fetched versions: $versions"
+          echo "::set-output name=versions::$versions"
+
   build_and_run:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubernetes-version: [v1.32.1, v1.31.5, v1.30.8]
+        kubernetes-version: ${{ fromJson(needs.fetch_versions.outputs.versions) }}
 
     steps:
       # Step 1: Check out the repository
