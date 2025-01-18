@@ -11,8 +11,6 @@ on:
 jobs:
   fetch_versions:
     runs-on: ubuntu-latest
-    outputs:
-      versions: ${{ steps.set_versions.outputs.versions }}
     steps:
       - name: Fetch latest Kubernetes versions
         id: set_versions
@@ -27,7 +25,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubernetes-version: ${{ updated_versions }}
+        kubernetes-version: ${{ env.updated_versions }}
 
     steps:
       # Step 1: Check out the repository
