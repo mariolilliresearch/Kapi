@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubernetes-version: ${{fromJson(needs.fetch_versions.outputs.versions_array)}}
+        kubernetes-version: ${{fromJson(needs.fetch-versions.outputs.versions_array)}}
 
     steps:
       # Step 1: Check out the repository
