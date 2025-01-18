@@ -73,7 +73,7 @@ jobs:
         id: fetch_and_compare_versions
         run: |
           # Extract versions from the previous job output.
-          echo "${{ needs.fetch-versions.outputs.versions_list }}" > version_input.json
+          echo '${{ needs.fetch-versions.outputs.versions_list }}' > version_input.json
           latest_versions=$(jq -r '.["kubernetes-version"] | map(select(. != null))' version_input.json)
 
           # List directories representing Kubernetes versions in the repository.
