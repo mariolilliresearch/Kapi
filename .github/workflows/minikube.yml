@@ -47,6 +47,12 @@ jobs:
           # Write the JSON array back to GITHUB_OUTPUT (remove newlines and spaces)
           echo "versions_array=$(echo "$json_array" | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
 
+      - name: Debug GITHUB_OUTPUT
+        run: |
+          echo "Contents of versions.txt:"
+          cat versions.txt || echo "versions.txt not found"
+          echo "GITHUB_OUTPUT contents:"
+          cat $GITHUB_OUTPUT || echo "GITHUB_OUTPUT not found"
   build_and_run:
     runs-on: ubuntu-22.04
     strategy:
