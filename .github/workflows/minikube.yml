@@ -40,7 +40,7 @@ jobs:
           echo "$versions" > versions.txt
 
           # Convert newline-separated list to JSON array
-          IFS=$'\n' read -r -d '' -a version_array < versions.txt
+          mapfile -t version_array < versions.txt
           json_array=$(printf '%s\n' "${version_array[@]}" | jq -R . | jq -s .)
           echo "Converted JSON Array: $json_array"
 
