@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubernetes-version: ${{ fromJson('[' + needs.fetch_versions.outputs.versions.replace('\n', ',') + ']') }}
+        kubernetes-version: ${{ `fromJson(needs.fetch_versions.outputs.versions.split('\n'))` }}
 
     steps:
       # Step 1: Check out the repository
