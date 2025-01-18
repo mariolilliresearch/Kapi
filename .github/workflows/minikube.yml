@@ -11,7 +11,8 @@ on:
 jobs:
   fetch-versions:
     runs-on: ubuntu-latest
-
+    outputs:
+      versions_array: ${{ steps.fetch_versions.outputs.versions_array }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -20,6 +21,7 @@ jobs:
         run: sudo apt-get install -y jq
 
       - name: Fetch and process versions
+        id: fetch_versions
         run: |
           # Fetch the list of releases
           versions=$(curl -s https://api.github.com/repos/kubernetes/kubernetes/releases \
@@ -45,19 +47,14 @@ jobs:
           # Validate JSON array
           echo "$json_array" | jq . || { echo "Error: Invalid JSON array"; exit 1; }
 
-          # Write the JSON array to GITHUB_ENV
-          echo "versions_array=$json_array" >> $GITHUB_ENV
-
-      - name: Debug versions_array
-        run: |
-          echo "Versions Array: ${{ env.versions_array }}"
+          # Write the JSON array to GITHUB_OUTPUT
+          echo "versions_array=$json_array" >> $GITHUB_OUTPUT
 
   build_and_run:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        kubernetes-version: ${{ fromJson(env.versions_array) }}
-
+        kubernetes-version: ${{ fromJson(needs.fetch-versions.outputs.versions_array) }}
     steps:
       # Step 1: Check out the repository
       - name: Check out code
