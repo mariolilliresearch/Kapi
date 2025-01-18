@@ -53,15 +53,16 @@ jobs:
           # Ensure the JSON is compact and has no trailing commas
           json_array=$(echo "$json_array" | jq -c .)
 
-          # Write the JSON array to GITHUB_OUTPUT
-          echo "versions_array=$json_array" >> $GITHUB_OUTPUT
-          echo ${{ fromJson(needs.fetch-versions.outputs.versions_array) }}
+          # Wrap the array with the desired key structure
+          final_output=$(echo "{\"kubernetes-version\": $json_array}")
+
+          # Write the JSON object to GITHUB_OUTPUT
+          echo "versions_array=$final_output" >> $GITHUB_OUTPUT
 
   build_and_run:
     runs-on: ubuntu-22.04
     strategy:
-      matrix:
-        kubernetes-version: ${{ fromJson(needs.fetch-versions.outputs.versions_array) }}
+      matrix: ${{ fromJson(needs.fetch-versions.outputs.versions_array) }}
     steps:
       # Step 1: Check out the repository
       - name: Check out code
