@@ -9,8 +9,9 @@ on:
         default: "go1.20.6"
 
 jobs:
-  fetch_versions:
+  fetch-versions:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -19,9 +20,10 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Fetch Kubernetes Versions and Process
+      - name: Fetch and process versions
+        shell: bash -e {0}
         env:
-          GITHUB_OUTPUT: ${{ github.output_path }}
+          GITHUB_OUTPUT: ${{ github.output }}
         run: |
           # Fetch the list of releases
           versions=$(curl -s https://api.github.com/repos/kubernetes/kubernetes/releases \
@@ -32,7 +34,7 @@ jobs:
           echo "Fetched versions: $versions"
 
           # Write to GITHUB_OUTPUT in correct format
-          echo "versions=${versions}" >> $GITHUB_OUTPUT
+          echo "versions=${versions//[$'\t\r\n ']/}" >> "$GITHUB_OUTPUT"
 
           # Store versions in a file for further processing
           echo "$versions" > versions.txt
@@ -43,7 +45,8 @@ jobs:
           echo "Converted JSON Array: $json_array"
 
           # Write the JSON array back to GITHUB_OUTPUT
-          echo "versions_array=${json_array}" >> $GITHUB_OUTPUT
+          echo "versions_array=${json_array//[$'\t\r\n ']/}" >> "$GITHUB_OUTPUT"
+
   build_and_run:
     runs-on: ubuntu-22.04
     strategy:
