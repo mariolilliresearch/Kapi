@@ -59,7 +59,7 @@ jobs:
           # Write the JSON object to GITHUB_OUTPUT
           echo "versions_array=$final_output" >> $GITHUB_OUTPUT
 
-  check_and_update_versions:
+  manage_folder_versions:
     needs: fetch-versions
     runs-on: ubuntu-latest
     steps:
@@ -76,47 +76,76 @@ jobs:
           echo "${{ needs.fetch-versions.outputs.versions_list }}" > version_input.json
           latest_versions=$(jq -r '.["kubernetes-version"] | map(select(. != null))' version_input.json)
 
-          # List directories on GitHub that represent Kubernetes versions.
-          current_versions=$(ls -1d [v]*/ | tr '\n' ' ')
-
-          # Debugging information to inspect the variables
-          echo "Latest fetched versions: $latest_versions"
+          # List directories representing Kubernetes versions in the repository.
+          current_versions=$(ls -1d v*/ | sed 's/\/$//' | tr '\n' ' ')
           echo "Current repository folders: $current_versions"
+          echo "Latest fetched versions: $latest_versions"
 
-          # Function to determine if a version is newer than another
+          # Function to compare versions
           isNewerVersion() {
-            [[ $(printf "%s\n%s" "$2" "$1" | sort -V | head -n 1) == "$2" ]]
+            [[ $(printf "%s\n%s" "$1" "$2" | sort -V | head -n 1) == "$1" ]]
           }
 
-          for fetched_version in $latest_versions; do
-              fetched_version=${fetched_version:1} # Remove the leading "v"
-              if ! echo "$current_versions" | grep -qF "/$fetched_version/"; then
-                  # Check and delete previous versions if a newer version is present
-                  found_old=false
-                  for current_version in $current_versions; do
-                      current_version=${current_version:1:-1} # Remove the leading "v" and trailing "/"
-                      if isNewerVersion "$fetched_version" "$current_version"; then
-                          rm -rf "$current_version"
-                          echo "Removed older version directory: $current_version"
-                          found_old=true
-                      fi
-                  done
+          # Parse versions into arrays
+          readarray -t fetched_array <<< $(echo "$latest_versions" | jq -r '.[]')
+          readarray -t current_array <<< $(echo "$current_versions" | sed 's/^v//g')
 
-                  # If no previous versions were newer, move the oldest to deprecated
-                  if [ "$found_old" = false ]; then
-                      oldest_version=$(printf "%s\n" ${current_versions} | sort -V | head -n 1)
-                      oldest_version=${oldest_version:1:-1}
-                      mv "$oldest_version" "deprecated/$oldest_version"
-                      echo "Moved the oldest version directory to deprecated: $oldest_version"
-                  fi
-              else
-                  # If the version already exists, consider updating logic as needed
-                  echo "Version $fetched_version already present in repository."
+          # Track changes for commit
+          changes_made=false
+
+          # Iterate through fetched versions and handle updates
+          for fetched_version in "${fetched_array[@]}"; do
+            fetched_major=$(echo "$fetched_version" | cut -d '.' -f 1,2)
+            fetched_minor=$(echo "$fetched_version" | cut -d '.' -f 3)
+
+            for current_version in "${current_array[@]}"; do
+              current_major=$(echo "$current_version" | cut -d '.' -f 1,2)
+              current_minor=$(echo "$current_version" | cut -d '.' -f 3)
+
+              # Check for minor updates and delete older minor versions
+              if [[ "$fetched_major" == "$current_major" ]] && [[ "$fetched_minor" -gt "$current_minor" ]]; then
+                echo "Deleting folder for older minor version: v$current_version"
+                rm -rf "v$current_version"
+                changes_made=true
               fi
+            done
           done
 
+          # Move the oldest major version folder to the deprecated directory if a newer major version exists
+          newest_major=$(printf "%s\n" "${fetched_array[@]}" | cut -d '.' -f 1,2 | sort -uV | tail -n 1)
+          for current_version in "${current_array[@]}"; do
+            current_major=$(echo "$current_version" | cut -d '.' -f 1,2)
+            if isNewerVersion "$current_major" "$newest_major"; then
+              echo "Moving the oldest major version folder to deprecated: v$current_version"
+              mkdir -p deprecated
+              mv "v$current_version" deprecated/
+              changes_made=true
+            fi
+          done
+
+          # Save whether changes were made for the next step
+          echo "changes_made=$changes_made" >> $GITHUB_ENV
+
+      - name: Commit and push changes
+        if: env.changes_made == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Configure Git
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # Add all changes to the staging area
+          git add .
+
+          # Commit changes if any exist
+          git commit -m "Manage folder versions: Remove outdated and move deprecated folders"
+
+          # Push changes to the repository
+          git push origin main
+
   build_and_run:
-    needs: fetch-versions
+    needs: [fetch-versions, manage_folder_versions]
     runs-on: ubuntu-22.04
     strategy:
       matrix: ${{ fromJson(needs.fetch-versions.outputs.versions_list) }}
