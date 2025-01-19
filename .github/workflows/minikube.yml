@@ -84,88 +84,85 @@ jobs:
              changes_made=false
 
              # Function to compare versions
-             function compareVersions() {
-                 local version1=$1
-                 local version2=$2
-
+             compare_versions() {
                  # Remove the 'v' prefix for comparison
-                 version1=${version1:1}
-                 version2=${version2:1}
+                 version1=${1:1}
+                 version2=${2:1}
 
                  # Split versions into arrays
                  IFS='.' read -r -a ver1 <<< "$version1"
                  IFS='.' read -r -a ver2 <<< "$version2"
 
                  for i in {0..2}; do
-                     if [[ ${ver1[i]} -gt ${ver2[i]} ]]; then
+                     if [[ ${ver1[i]:-0} -gt ${ver2[i]:-0} ]]; then
                          return 1  # version1 is newer
-                     elif [[ ${ver1[i]} -lt ${ver2[i]} ]]; then
+                     elif [[ ${ver1[i]:-0} -lt ${ver2[i]:-0} ]]; then
                          return -1 # version2 is newer
                      fi
                  done
                  return 0  # Versions are equal
              }
 
-             # Deprecate the oldest version if a newer version exists
+             # Step 1: Deprecate the oldest version if a newer major.minor version exists
              if [[ -n "$current_versions" ]]; then
-                 oldest_version=""
-                 for current_version in $current_versions; do
-                     if [[ -z "$oldest_version" ]]; then
-                         oldest_version="$current_version"
-                     else
-                         compareVersions "$oldest_version" "$current_version"
-                         if [[ $? -eq 1 ]]; then
-                             oldest_version="$current_version"
-                         fi
-                     fi
-                 done
+                 # Find the oldest version
+                 oldest_version=$(echo "$current_versions" | sort -V | head -n 1)
 
-                 # Check if any fetched version has X and Y superior to the oldest version
-                 for fetched_version in $(echo "$latest_versions" | jq -r '.[]'); do
-                     IFS='.' read -r major_fetched minor_fetched <<< "${fetched_version:1}"
-                     IFS='.' read -r major_oldest minor_oldest <<< "${oldest_version:1}"
+                 # Check if a newer major.minor version exists
+                 for fetched_version in $latest_versions; do
+                     compare_versions "${fetched_version}" "${oldest_version}"
+                     result=$?
 
-                     if [[ "$major_fetched" -gt "$major_oldest" ||
-                           ( "$major_fetched" -eq "$major_oldest" && "$minor_fetched" -gt "$minor_oldest" ) ]]; then
-                         echo "Moving the oldest version to deprecated: $oldest_version"
-                         if [ -d "$oldest_version" ]; then
-                             mkdir -p deprecated
-                             mv "$oldest_version" "deprecated/$oldest_version"
-                             changes_made=true
-                         else
-                             echo "Directory does not exist: $oldest_version"
-                         fi
+                     # If fetched version is newer, move the oldest version to deprecated
+                     if [[ $result -eq 1 ]]; then
+                         echo "Deprecating the oldest version: $oldest_version"
+                         mkdir -p deprecated
+                         mv "$oldest_version" "deprecated/$oldest_version"
+                         changes_made=true
                          break
                      fi
                  done
              fi
 
-             # Handle patch version updates
-             for fetched_version in $(echo "$latest_versions" | jq -r '.[]'); do
-                 for current_version in $current_versions; do
-                     IFS='.' read -r major_fetched minor_fetched patch_fetched <<< "${fetched_version:1}"
-                     IFS='.' read -r major_current minor_current patch_current <<< "${current_version:1}"
+             # Step 2: Remove outdated patch versions
+             for fetched_version in $latest_versions; do
+                 major_minor_fetched=$(echo "${fetched_version:1}" | cut -d. -f1,2)
 
-                     if [[ "$major_fetched" == "$major_current" && "$minor_fetched" == "$minor_current" && "$patch_fetched" -gt "$patch_current" ]]; then
-                         echo "Deleting outdated patch version: $current_version"
-                         if [ -d "$current_version" ]; then
+                 for current_version in $current_versions; do
+                     major_minor_current=$(echo "${current_version:1}" | cut -d. -f1,2)
+
+                     # Check if the major.minor match and the fetched patch is newer
+                     if [[ "$major_minor_fetched" == "$major_minor_current" ]]; then
+                         compare_versions "$fetched_version" "$current_version"
+                         result=$?
+
+                         # If the current version is outdated, remove it
+                         if [[ $result -eq 1 ]]; then
+                             echo "Removing outdated patch version: $current_version"
                              rm -rf "$current_version"
                              changes_made=true
-                         else
-                             echo "Directory does not exist: $current_version"
                          fi
                      fi
                  done
              done
 
+             # Step 3: Add missing versions
+             for fetched_version in $latest_versions; do
+                 if [[ ! -d "$fetched_version" ]]; then
+                     echo "Adding new version: $fetched_version"
+                     mkdir -p "$fetched_version"
+                     changes_made=true
+                 fi
+             done
+
              # Print if any changes were made
-             if [ "$changes_made" = true ]; then
+             if [[ "$changes_made" == true ]]; then
                  echo "Changes have been made."
              else
                  echo "No changes were necessary."
              fi
 
-             # Save whether changes were made for the next step
+             # Save the result for the next step
              echo "changes_made=$changes_made" >> $GITHUB_ENV
 
       - name: Commit and push changes
