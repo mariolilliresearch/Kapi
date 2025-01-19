@@ -306,7 +306,7 @@ jobs:
           for spec in specs/*; do
             folder_name=$(basename "$spec" | sed 's/specs-//')
             mkdir -p "$folder_name"
-            mv "$spec" "$folder_name/spec.json"
+            mv "${spec}/spec.json" "${folder_name}/"
           done
 
       - name: Commit and push changes
