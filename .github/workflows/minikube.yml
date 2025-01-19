@@ -84,7 +84,7 @@ jobs:
              changes_made=false
 
              # Function to compare versions
-             function isNewerVersion() {
+             function compareVersions() {
                  local version1=$1
                  local version2=$2
 
@@ -106,52 +106,63 @@ jobs:
                  return 0  # Versions are equal
              }
 
-             # Determine the oldest version to move to deprecated
-             oldest_version=""
-             for current_version in $current_versions; do
-               if [[ -z "$oldest_version" || isNewerVersion "$oldest_version" "$current_version" -eq 1 ]]; then
-                 oldest_version="$current_version"
-               fi
-             done
+             # Deprecate the oldest version if a newer version exists
+             if [[ -n "$current_versions" ]]; then
+                 oldest_version=""
+                 for current_version in $current_versions; do
+                     if [[ -z "$oldest_version" ]]; then
+                         oldest_version="$current_version"
+                     else
+                         compareVersions "$oldest_version" "$current_version"
+                         if [[ $? -eq 1 ]]; then
+                             oldest_version="$current_version"
+                         fi
+                     fi
+                 done
 
-             for fetched_version in $(echo "$latest_versions" | jq -r '.[]'); do
-               # Check if the fetched version is newer than the oldest
-               if [[ -n "$oldest_version" && isNewerVersion "$fetched_version" "$oldest_version" -eq 1 ]]; then
-                 echo "Moving the oldest version to deprecated: $oldest_version"
-                 if [ -d "$oldest_version" ]; then
-                   mkdir -p deprecated
-                   mv "$oldest_version" "deprecated/$oldest_version"
-                   changes_made=true
-                 else
-                   echo "Directory does not exist: $oldest_version"
-                 fi
-                 break
-               fi
-             done
+                 # Check if any fetched version has X and Y superior to the oldest version
+                 for fetched_version in $(echo "$latest_versions" | jq -r '.[]'); do
+                     IFS='.' read -r major_fetched minor_fetched <<< "${fetched_version:1}"
+                     IFS='.' read -r major_oldest minor_oldest <<< "${oldest_version:1}"
+
+                     if [[ "$major_fetched" -gt "$major_oldest" ||
+                           ( "$major_fetched" -eq "$major_oldest" && "$minor_fetched" -gt "$minor_oldest" ) ]]; then
+                         echo "Moving the oldest version to deprecated: $oldest_version"
+                         if [ -d "$oldest_version" ]; then
+                             mkdir -p deprecated
+                             mv "$oldest_version" "deprecated/$oldest_version"
+                             changes_made=true
+                         else
+                             echo "Directory does not exist: $oldest_version"
+                         fi
+                         break
+                     fi
+                 done
+             fi
 
              # Handle patch version updates
              for fetched_version in $(echo "$latest_versions" | jq -r '.[]'); do
-               for current_version in $current_versions; do
-                 IFS='.' read -r major_fetched minor_fetched patch_fetched <<< "${fetched_version:1}"
-                 IFS='.' read -r major_current minor_current patch_current <<< "${current_version:1}"
+                 for current_version in $current_versions; do
+                     IFS='.' read -r major_fetched minor_fetched patch_fetched <<< "${fetched_version:1}"
+                     IFS='.' read -r major_current minor_current patch_current <<< "${current_version:1}"
 
-                 if [[ "$major_fetched" == "$major_current" && "$minor_fetched" == "$minor_current" && "$patch_fetched" >= "$patch_current" ]]; then
-                   echo "Deleting outdated or equal patch version: $current_version"
-                   if [ -d "$current_version" ]; then
-                     rm -rf "$current_version"
-                     changes_made=true
-                   else
-                     echo "Directory does not exist: $current_version"
-                   fi
-                 fi
-               done
+                     if [[ "$major_fetched" == "$major_current" && "$minor_fetched" == "$minor_current" && "$patch_fetched" -gt "$patch_current" ]]; then
+                         echo "Deleting outdated patch version: $current_version"
+                         if [ -d "$current_version" ]; then
+                             rm -rf "$current_version"
+                             changes_made=true
+                         else
+                             echo "Directory does not exist: $current_version"
+                         fi
+                     fi
+                 done
              done
 
              # Print if any changes were made
              if [ "$changes_made" = true ]; then
-               echo "Changes have been made."
+                 echo "Changes have been made."
              else
-               echo "No changes were necessary."
+                 echo "No changes were necessary."
              fi
 
              # Save whether changes were made for the next step
