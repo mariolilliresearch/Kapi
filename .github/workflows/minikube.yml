@@ -144,8 +144,8 @@ jobs:
                   major_minor_current=$(echo "${current_version:1}" | cut -d. -f1,2)
 
                   if [[ "$major_minor_fetched" == "$major_minor_current" ]]; then
-                      compare_versions "$fetched_version" "$current_version"
-                      result=$?
+                      result=$(compare_versions "$fetched_version" "$current_version")
+
                       echo "Comparing $fetched_version with $current_version (result: $result)"
 
                       if [[ $result -eq 1 ]]; then
