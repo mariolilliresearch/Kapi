@@ -240,18 +240,32 @@ jobs:
           kubectl get --raw /openapi/v2 > ${KUBERNETES_VERSION}/spec.json
 
       # Step 10: Commit and push changes to the repository
-      - name: Commit and Push
+      - name: Stage changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add ${{ matrix.kubernetes-version }}/spec.json
-          git commit -m "Add OpenAPI spec for Kubernetes version ${{ matrix.kubernetes-version }}"
-          git push origin main
 
       # Step 11: Clean up after the job is done
       - name: Stop and delete Minikube cluster
         run: |
           minikube stop
           minikube delete --all
+
+  commit_changes:
+    needs: [build_and_run]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Commit Changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -m "Add OpenAPI specs for Kubernetes versions ${{ matrix.kubernetes-version }}" || echo "No changes to commit"
+          git push origin main
