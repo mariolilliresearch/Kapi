@@ -111,15 +111,24 @@ jobs:
               echo "Oldest version: $oldest_version"
 
               for fetched_version in $latest_versions; do
+                  echo "Comparing fetched_version=$fetched_version with oldest_version=$oldest_version"
                   compare_versions "$fetched_version" "$oldest_version"
                   result=$?
-                  echo "Comparing $fetched_version with $oldest_version (result: $result)"
+                  echo "Comparison result: $result"
 
                   if [[ $result -eq 1 ]]; then
                       echo "Deprecating the oldest version: $oldest_version"
-                      mkdir -p deprecated
-                      mv "$oldest_version" "deprecated/$oldest_version"
-                      changes_made=true
+                      if [[ -d "$oldest_version" ]]; then
+                          mkdir -p deprecated
+                          mv "$oldest_version" "deprecated/$oldest_version" || {
+                              echo "Failed to move $oldest_version to deprecated/"
+                              exit 1
+                          }
+                          changes_made=true
+                      else
+                          echo "Folder $oldest_version does not exist."
+                          exit 1
+                      fi
                       break
                   fi
               done
@@ -139,7 +148,10 @@ jobs:
 
                       if [[ $result -eq 1 ]]; then
                           echo "Removing outdated patch version: $current_version"
-                          rm -rf "$current_version"
+                          rm -rf "$current_version" || {
+                              echo "Failed to remove $current_version"
+                              exit 1
+                          }
                           changes_made=true
                       fi
                   fi
@@ -150,7 +162,10 @@ jobs:
           for fetched_version in $latest_versions; do
               if [[ ! -d "$fetched_version" ]]; then
                   echo "Adding new version: $fetched_version"
-                  mkdir -p "$fetched_version"
+                  mkdir -p "$fetched_version" || {
+                      echo "Failed to create directory for $fetched_version"
+                      exit 1
+                  }
                   changes_made=true
               fi
           done
