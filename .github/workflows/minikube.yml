@@ -97,12 +97,14 @@ jobs:
 
               for i in {0..2}; do
                   if [[ ${ver1[i]:-0} -gt ${ver2[i]:-0} ]]; then
-                      return 1  # version1 is newer
+                      echo "1"  # version1 is newer
+                      return
                   elif [[ ${ver1[i]:-0} -lt ${ver2[i]:-0} ]]; then
-                      return -1 # version2 is newer
+                      echo "-1"  # version2 is newer
+                      return
                   fi
               done
-              return 0  # Versions are equal
+              echo "0"  # Versions are equal
           }
 
           # Step 1: Deprecate the oldest version if a newer major.minor version exists
