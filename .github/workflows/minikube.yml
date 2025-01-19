@@ -168,6 +168,7 @@ jobs:
                       echo "Failed to create directory for $fetched_version"
                       exit 1
                   }
+                  touch "$fetched_version/spec.json"
                   changes_made=true
               fi
           done
