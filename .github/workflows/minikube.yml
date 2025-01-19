@@ -182,22 +182,23 @@ jobs:
           # Save the result for the next step
           echo "changes_made=$changes_made" >> $GITHUB_ENV
 
+      - name: Debug changes after manage_folder_versions
+        run: |
+          echo "Listing directories after manage_folder_versions step:"
+          ls -R
+          echo "Current Git status:"
+          git status
+
       - name: Commit and push changes
         if: env.changes_made == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Configure Git
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          # Add all changes to the staging area
           git add .
-
-          # Commit changes if any exist
-          git commit -m "Manage folder versions: Remove outdated and move deprecated folders"
-
-          # Push changes to the repository
+          git commit -m "Manage folder versions: Added/removed directories"
           git push origin main
 
   build_and_run:
