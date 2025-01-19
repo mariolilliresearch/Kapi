@@ -102,9 +102,12 @@ jobs:
                   elif [[ ${ver1[i]:-0} -lt ${ver2[i]:-0} ]]; then
                       echo "-1"  # version2 is newer
                       return
+                  else
+                      echo "0"  # Versions are equal
+                      return
                   fi
               done
-              echo "0"  # Versions are equal
+
           }
 
           # Step 1: Deprecate the oldest version if a newer major.minor version exists
