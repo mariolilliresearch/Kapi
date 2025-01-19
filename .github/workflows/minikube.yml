@@ -114,8 +114,8 @@ jobs:
 
               for fetched_version in $latest_versions; do
                   echo "Comparing fetched_version=$fetched_version with oldest_version=$oldest_version"
-                  compare_versions "$fetched_version" "$oldest_version"
-                  result=$?
+                  result=$(compare_versions "$fetched_version" "$oldest_version")
+
                   echo "Comparison result: $result"
 
                   if [[ $result -eq 1 ]]; then
