@@ -145,7 +145,6 @@ jobs:
                   fi
                   break
               fi
-              done
 
           fi
 
