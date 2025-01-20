@@ -79,9 +79,13 @@ jobs:
           # List directories representing Kubernetes versions in the repository
           readarray -t current_versions <<< "$(ls -1d v*/ 2>/dev/null | sed 's/\/$//')"
           echo "Current repository folders:"
-          echo "$current_versions"
+          echo "${current_versions[0]}"
+          echo "${current_versions[1]}"
+          echo "${current_versions[2]}"
           echo "Latest fetched versions:"
-          echo "$latest_versions"
+          echo "$latest_versions[0]"
+          echo "$latest_versions[1]"
+          echo "$latest_versions[2]"
 
           changes_made=false
 
