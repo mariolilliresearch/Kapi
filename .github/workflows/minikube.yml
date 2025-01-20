@@ -127,15 +127,15 @@ jobs:
               newest_fetched_version=$(echo "$latest_versions" | sort -Vr | head -n 1)
               echo "Newest fetched version: $newest_fetched_version"
 
-              echo "Comparing newest_fetched_version=$newest_fetched_version with newest_current_version=$newest_current_version"
-              result=$(compare_versions "$newest_fetched_version" "$newest_fetched_version")
+              echo "Comparing newest_fetched_version=${newest_fetched_version} with newest_current_version=${newest_current_version}"
+              result=$(compare_versions "${newest_fetched_version}" "${newest_fetched_version}")
 
               if [[ $result -eq 1 || $result -eq 2 ]]; then
-                  echo "Deprecating the oldest version: $oldest_version"
+                  echo "Deprecating the oldest version: ${oldest_version}"
                   if [[ -d "$oldest_version" ]]; then
                       mkdir -p deprecated
                       mv "$oldest_version" "deprecated/$oldest_version" || {
-                          echo "Failed to move $oldest_version to deprecated/"
+                          echo "Failed to move ${oldest_version} to deprecated/"
                           exit 1
                       }
                       changes_made=true
