@@ -179,7 +179,7 @@ jobs:
 
                   if [[ $result -eq 3 || $result -eq 0 ]]; then
                       echo "Removing outdated patch version: ${current_versions[idx]}"
-                      rm -rf ""${current_versions[idx]}" || {
+                      rm -rf "${current_versions[idx]}" || {
                           echo "Failed to remove ${current_versions[idx]}"
                           exit 1
                       }
