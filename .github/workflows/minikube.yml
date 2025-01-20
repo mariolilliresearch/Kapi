@@ -83,9 +83,9 @@ jobs:
           echo "${current_versions[1]}"
           echo "${current_versions[2]}"
           echo "Latest fetched versions:"
-          echo "$latest_versions[0]"
-          echo "$latest_versions[1]"
-          echo "$latest_versions[2]"
+          echo "${latest_versions[0]}"
+          echo "${latest_versions[1]}"
+          echo "${latest_versions[2]}"
 
           changes_made=false
 
