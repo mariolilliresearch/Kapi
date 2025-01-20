@@ -155,7 +155,7 @@ jobs:
                   for (( idx=${#remaining_current_versions[@]}-1 ; idx>=0 ; idx-- )); do
                       idxn=$(( ${#remaining_fetched_versions[@]} - idx - 1))
                       result=$(compare_versions "${remaining_fetched_versions[idxn]}" "${remaining_current_versions[idx]}")
-                      echo "Debug: idx=$idx, idxn=$idxn"
+                      echo "Debug: idx=$idx, idxn=$idxn, current_version=${#current_versions[@]}-1"
                       echo "Comparing ${remaining_fetched_versions[idxn]} with ${remaining_current_versions[idx]} (result: $result)"
 
                       if [[ $result -eq 3 || $result -eq 0 ]]; then
@@ -173,7 +173,7 @@ jobs:
               for (( idx=${#current_versions[@]}-1 ; idx>=0 ; idx-- )); do
                   idxn=$(( ${#latest_versions[@]} - idx - 1))
                   result=$(compare_versions "${latest_versions[idxn]}" "${current_versions[idx]}")
-                  echo "Debug: idx=$idx, idxn=$idxn"
+                  echo "Debug: idx=$idx, idxn=$idxn, current_version=${#current_versions[@]}-1"
                   echo "Comparing ${latest_versions[idxn]} with ${current_versions[idx]} (result: $result)"
 
                   if [[ $result -eq 3 || $result -eq 0 ]]; then
