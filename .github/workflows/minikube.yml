@@ -74,10 +74,10 @@ jobs:
         run: |
           # Extract versions from the previous job output.
           echo '${{ needs.fetch-versions.outputs.versions_list }}' > version_input.json
-          latest_versions=$(jq -r '.["kubernetes-version"][]' version_input.json)
+          readarray -t latest_versions <<< "$(jq -r '.["kubernetes-version"][]' version_input.json)"
 
           # List directories representing Kubernetes versions in the repository
-          current_versions=$(ls -1d v*/ 2>/dev/null | sed 's/\/$//')
+          readarray -t current_versions <<< "$(ls -1d v*/ 2>/dev/null | sed 's/\/$//')"
           echo "Current repository folders:"
           echo "$current_versions"
           echo "Latest fetched versions:"
