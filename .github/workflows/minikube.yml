@@ -156,7 +156,7 @@ jobs:
               remaining_current_versions=("${current_versions[@]:1}")
               remaining_fetched_versions=("${latest_versions[@]:1}")
 
-                  for (( idx=${#remaining_current_versions[@]} ; idx>=0 ; idx-- )); do
+                  for (( idx=${#remaining_current_versions[@]}-1 ; idx>=0 ; idx-- )); do
                       idxn=$(( ${#remaining_fetched_versions[@]} - idx ))
                       result=$(compare_versions "${remaining_fetched_versions[idxn]}" "${remaining_current_versions[idx]}")
                       echo "Debug: idx=$idx, idxn=$idxn, current_version=${#current_versions[@]}"
@@ -174,7 +174,7 @@ jobs:
                   done
 
           else
-              for (( idx=${#current_versions[@]} ; idx>=0 ; idx-- )); do
+              for (( idx=${#current_versions[@]}-1 ; idx>=0 ; idx-- )); do
                   idxn=$(( ${#latest_versions[@]} - idx ))
                   result=$(compare_versions "${latest_versions[idxn]}" "${current_versions[idx]}")
                   echo "Debug: idx=$idx, idxn=$idxn, current_version=${#current_versions[@]}"
