@@ -101,7 +101,6 @@ jobs:
 
               # Compare each segment: major, minor, patch
               for i in {0..2}; do
-                  echo "Debug: ver1[${i}]=${ver1[i]:-0}, ver2[${i}]=${ver2[i]:-0}"
                   # Use `${ver1[i]:-0}` to handle missing components (default to 0)
                   if (( ${ver1[i]:-0} > ${ver2[i]:-0} )); then
                       case $i in
