@@ -99,21 +99,21 @@ jobs:
               IFS='.' read -r -a ver1 <<< "$version1"
               IFS='.' read -r -a ver2 <<< "$version2"
 
+              # Compare each segment: major, minor, patch
               for i in {0..2}; do
-                  if [[ ${ver1[i]:-0} -gt ${ver2[i]:-0} ]]; then
+                  # Use `${ver1[i]:-0}` to handle missing components (default to 0)
+                  if (( ${ver1[i]:-0} > ${ver2[i]:-0} )); then
                       case $i in
-                          0) echo "1" ;;
-                          1) echo "2" ;;
-                          2) echo "3" ;;
+                          0) echo "1"; return ;;  # Major version difference
+                          1) echo "2"; return ;;  # Minor version difference
+                          2) echo "3"; return ;;  # Patch version difference
                       esac
-                      return
-                  elif [[ ${ver1[i]:-0} -lt ${ver2[i]:-0} ]]; then
+                  elif (( ${ver1[i]:-0} < ${ver2[i]:-0} )); then
                       case $i in
-                          0) echo "-1" ;;
-                          1) echo "-2" ;;
-                          2) echo "-3" ;;
+                          0) echo "-1"; return ;;  # Major version difference
+                          1) echo "-2"; return ;;  # Minor version difference
+                          2) echo "-3"; return ;;  # Patch version difference
                       esac
-                      return
                   fi
               done
 
@@ -122,7 +122,7 @@ jobs:
 
           # Step 1: Deprecate the oldest version if a newer major.minor version exists
           if [[ -n "$current_versions" ]]; then
-              oldest_version=$(echo "$current_versions" | sort -V | head -n 1)
+              oldest_version=${current_versions[0]}
               echo "Oldest current version: $oldest_version"
 
               newest_current_version=${current_versions[2]}
