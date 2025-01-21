@@ -317,6 +317,10 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v3
 
+      - name: Pull latest changes from remote
+        run: |
+          git pull origin main
+
       - name: Download all OpenAPI specs
         uses: actions/download-artifact@v3
         with:
@@ -330,10 +334,6 @@ jobs:
             mkdir -p "$folder_name"
             mv "${spec}/spec.json" "${folder_name}/"
           done
-
-      - name: Pull latest changes from remote
-        run: |
-          git pull origin main
 
       - name: Commit and push changes
         env:
