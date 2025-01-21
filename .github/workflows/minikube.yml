@@ -132,7 +132,7 @@ jobs:
               newest_fetched_version=${latest_versions[0]}
               echo "Newest fetched version: $newest_fetched_version"
 
-              result=$(compare_versions "${newest_fetched_version}" "${newest_fetched_version}")
+              result=$(compare_versions "${newest_fetched_version}" "${newest_current_version}")
               echo "Comparing newest_fetched_version=${newest_fetched_version} with newest_current_version=${newest_current_version} (result: $result)"
 
               if [[ $result -eq 1 || $result -eq 2 ]]; then
