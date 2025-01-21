@@ -125,10 +125,10 @@ jobs:
               oldest_version=$(echo "$current_versions" | sort -V | head -n 1)
               echo "Oldest current version: $oldest_version"
 
-              newest_current_version=$(echo "$current_versions" | sort -Vr | head -n 1)
+              newest_current_version=${current_versions[2]}
               echo "Newest current version: $newest_current_version"
 
-              newest_fetched_version=$(echo "$latest_versions" | sort -Vr | head -n 1)
+              newest_fetched_version=${latest_versions[0]}
               echo "Newest fetched version: $newest_fetched_version"
 
               echo "Comparing newest_fetched_version=${newest_fetched_version} with newest_current_version=${newest_current_version}"
