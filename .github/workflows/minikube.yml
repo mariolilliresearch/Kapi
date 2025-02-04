@@ -224,7 +224,7 @@ jobs:
 
   build_and_run:
     needs: [fetch-versions, manage_folder_versions]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix: ${{ fromJson(needs.fetch-versions.outputs.versions_list) }}
     steps:
