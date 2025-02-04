@@ -338,7 +338,7 @@ jobs:
       - name: Create schema subfolder and clone repository
         run: |
           for folder_name in $(ls); do
-            if [[ "$folder_name"=~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            if [[ "$folder_name" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               mkdir -p "${folder_name}/schema"
               git clone --depth 1 https://github.com/yannh/kubernetes-json-schema.git -b master "tmp-${folder_name}"
               cp -r tmp-"${folder_name}"/${folder_name}/* ${folder_name}/schema/
