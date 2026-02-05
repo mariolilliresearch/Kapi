@@ -1,4 +1,4 @@
-name: Retrieve Kubernetes OpenAPI Spec using minikube (hardened action)
+name: Retrieve Kubernetes OpenAPI Spec using minikube
 
 on:
   workflow_dispatch:
@@ -13,11 +13,6 @@ on:
 permissions:
   contents: write
   actions: read
-
-# Environment variables for pinned dependency versions
-env:
-  CRI_DOCKERD_VERSION: "0.3.22"
-  MINIKUBE_VERSION: "1.35.0"
 
 jobs:
   fetch-versions:
@@ -44,7 +39,6 @@ jobs:
               | .[]
             ')
 
-          # Fallback if no versions are fetched
           if [[ -z "$versions" ]]; then
             echo "No versions fetched, setting default values."
             versions="v1.35.0 v1.34.3 v1.33.1"
@@ -58,29 +52,14 @@ jobs:
             fi
           done
 
-          # Debugging
           echo "Fetched versions: $versions"
-
-          # Write to versions.txt for debugging
           echo "$versions" > versions.txt
 
-          # Convert newline-separated list to JSON array
           mapfile -t version_array < versions.txt
           json_array=$(printf '%s\n' "${version_array[@]}" | jq -R . | jq -s .)
-
-          # Validate JSON array
           echo "$json_array" | jq . || { echo "Error: Invalid JSON array"; exit 1; }
-
-          # Trim any leading/trailing whitespace from the JSON array
-          json_array=$(echo "$json_array" | sed 's/^[ \t]*//;s/[ \t]*$//')
-
-          # Ensure the JSON is compact and has no trailing commas
           json_array=$(echo "$json_array" | jq -c .)
-
-          # Wrap the array with the desired key structure
           final_output=$(echo "{\"kubernetes-version\": $json_array}")
-
-          # Write the JSON object to GITHUB_OUTPUT
           echo "versions_array=$final_output" >> $GITHUB_OUTPUT
 
   manage_folder_versions:
@@ -93,10 +72,7 @@ jobs:
       - name: Fetch and process versions from previous job
         id: fetch_and_compare_versions
         run: |
-          # Extract versions from the previous job output.
           echo '${{ needs.fetch-versions.outputs.versions_list }}' > version_input.json
-          
-          # Validate JSON before processing
           jq . version_input.json > /dev/null || { echo "ERROR: Invalid JSON from previous job"; exit 1; }
           
           readarray -t latest_versions <<< "$(jq -r '.["kubernetes-version"][]' version_input.json)"
@@ -109,8 +85,6 @@ jobs:
             fi
           done
 
-          # List directories representing Kubernetes versions in the repository
-          # Only match valid version directories
           readarray -t current_versions <<< "$(ls -1d v[0-9]*.[0-9]*.[0-9]*/ 2>/dev/null | sed 's/\/$//' | sort -V)"
           
           echo "Current repository folders:"
@@ -120,14 +94,11 @@ jobs:
 
           changes_made=false
 
-          # Function to compare versions
           compare_versions() {
               local version1="${1:1}"
               local version2="${2:1}"
-
               IFS='.' read -r -a ver1 <<< "$version1"
               IFS='.' read -r -a ver2 <<< "$version2"
-
               for i in {0..2}; do
                   if (( ${ver1[i]:-0} > ${ver2[i]:-0} )); then
                       case $i in
@@ -143,11 +114,9 @@ jobs:
                       esac
                   fi
               done
-
               echo "0"
           }
 
-          # Step 1: Deprecate the oldest version if a newer major.minor version exists
           if [[ ${#current_versions[@]} -gt 0 && -n "${current_versions[0]}" ]]; then
               oldest_version=${current_versions[0]}
               echo "Oldest current version: $oldest_version"
@@ -177,7 +146,6 @@ jobs:
               fi
           fi
 
-          # Step 2: Remove outdated patch versions
           if [[ "$changes_made" == true ]]; then
               remaining_current_versions=("${current_versions[@]:1}")
               remaining_fetched_versions=("${latest_versions[@]:1}")
@@ -223,13 +191,6 @@ jobs:
 
           echo "changes_made=$changes_made" >> $GITHUB_ENV
 
-      - name: Debug changes after manage_folder_versions
-        run: |
-          echo "Listing directories after manage_folder_versions step:"
-          ls -la
-          echo "Current Git status:"
-          git status
-
       - name: Commit and push changes
         if: env.changes_made == 'true'
         env:
@@ -237,7 +198,6 @@ jobs:
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-
           git add .
           git commit -m "Manage folder versions: Added/removed directories"
           git push origin main
@@ -264,53 +224,31 @@ jobs:
           echo "version=$K8S_VERSION" >> $GITHUB_OUTPUT
           echo "Validated Kubernetes version: $K8S_VERSION"
 
-      # Validate Go version input and install with checksum verification
-      - name: Validate and install Go
+      # Validate Go version input
+      - name: Validate Go version
+        id: validate_go
         run: |
           GO_VERSION="${{ github.event.inputs.go_version }}"
-          
-          # Strict validation: only allow expected format (X.Y.Z)
           if [[ ! "$GO_VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
             echo "ERROR: Invalid Go version format. Expected: X.Y.Z (e.g., 1.20.6)"
             exit 1
           fi
-          
-          echo "Installing Go version: $GO_VERSION"
-          
-          # Download Go
+          echo "version=$GO_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Install Go
+        run: |
+          GO_VERSION="${{ steps.validate_go.outputs.version }}"
           wget -q "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz"
-          
-          # Fetch and verify checksum
-          EXPECTED_SHA=$(curl -sL "https://go.dev/dl/?mode=json&include=all" | \
-            jq -r ".[] | select(.version==\"go${GO_VERSION}\") | .files[] | select(.filename==\"go${GO_VERSION}.linux-amd64.tar.gz\") | .sha256")
-          
-          if [[ -z "$EXPECTED_SHA" || "$EXPECTED_SHA" == "null" ]]; then
-            echo "WARNING: Could not fetch checksum from Go API, attempting download anyway"
-          else
-            echo "Verifying checksum..."
-            echo "${EXPECTED_SHA}  go${GO_VERSION}.linux-amd64.tar.gz" | sha256sum -c - || {
-              echo "ERROR: Checksum verification failed!"
-              exit 1
-            }
-          fi
-          
           sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
           echo "/usr/local/go/bin" >> $GITHUB_PATH
-          echo "Go installed successfully."
+          echo "Go ${GO_VERSION} installed."
 
-      # Clone cri-dockerd at pinned version
-      - name: Clone cri-dockerd repository
+      - name: Clone and build cri-dockerd
         run: |
-          echo "Cloning cri-dockerd version: v${{ env.CRI_DOCKERD_VERSION }}"
-          git clone --branch "v${{ env.CRI_DOCKERD_VERSION }}" --depth 1 \
-            https://github.com/Mirantis/cri-dockerd.git
-
-      - name: Build cri-dockerd
-        run: |
+          git clone https://github.com/Mirantis/cri-dockerd.git
           cd cri-dockerd
           mkdir bin
           /usr/local/go/bin/go get && /usr/local/go/bin/go build -o bin/cri-dockerd
-          sudo mkdir -p /usr/local/bin
           sudo install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
           echo "cri-dockerd built successfully."
 
@@ -331,34 +269,20 @@ jobs:
           sudo apt-get autoremove -y
           echo "Docker and Containerd installed."
 
-      # Install minikube with checksum verification
-      - name: Install Minikube
+      - name: Install Minikube (latest)
         run: |
-          echo "Installing minikube version: v${{ env.MINIKUBE_VERSION }}"
-          
-          curl -LO "https://storage.googleapis.com/minikube/releases/v${{ env.MINIKUBE_VERSION }}/minikube-linux-amd64"
-          curl -LO "https://storage.googleapis.com/minikube/releases/v${{ env.MINIKUBE_VERSION }}/minikube-linux-amd64.sha256"
-          
-          # Verify checksum
-          echo "$(cat minikube-linux-amd64.sha256)  minikube-linux-amd64" | sha256sum -c - || {
-            echo "ERROR: Minikube checksum verification failed!"
-            exit 1
-          }
-          
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
           sudo install minikube-linux-amd64 /usr/local/bin/minikube
-          echo "Minikube installed successfully."
+          echo "Minikube installed: $(minikube version)"
 
       - name: Start Minikube
         run: |
-          # Use validated version from earlier step
           K8S_VERSION="${{ steps.validate_k8s.outputs.version }}"
           echo "Starting minikube with Kubernetes version: $K8S_VERSION"
-          
           minikube start --kubernetes-version="${K8S_VERSION}" --driver=docker
           
-          # Verify cluster is running
           kubectl cluster-info || {
-            echo "ERROR: Cluster failed to start properly"
+            echo "ERROR: Cluster failed to start"
             minikube logs
             exit 1
           }
@@ -370,19 +294,15 @@ jobs:
           
           kubectl get --raw /openapi/v2 > "${K8S_VERSION}/spec.json"
           
-          # Validate output is valid JSON
-          jq empty "${K8S_VERSION}/spec.json" || {
-            echo "ERROR: Invalid JSON in OpenAPI spec"
-            exit 1
-          }
+          # Validate output is valid JSON and OpenAPI
+          jq empty "${K8S_VERSION}/spec.json" || { echo "ERROR: Invalid JSON"; exit 1; }
           
-          # Basic sanity check - ensure it has expected OpenAPI structure
           if ! jq -e '.swagger or .openapi' "${K8S_VERSION}/spec.json" > /dev/null; then
-            echo "ERROR: spec.json doesn't appear to be a valid OpenAPI document"
+            echo "ERROR: Not a valid OpenAPI document"
             exit 1
           fi
           
-          echo "OpenAPI spec retrieved and validated successfully."
+          echo "OpenAPI spec retrieved successfully."
 
       - name: Upload OpenAPI specs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -405,8 +325,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Pull latest changes from remote
-        run: |
-          git pull origin main
+        run: git pull origin main
 
       - name: Download all OpenAPI specs
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -419,7 +338,6 @@ jobs:
             if [[ -d "$spec_dir" ]]; then
               folder_name=$(basename "$spec_dir" | sed 's/specs-//')
               
-              # Validate folder name matches version format
               if [[ ! "$folder_name" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
                 echo "WARNING: Skipping invalid folder name: $folder_name"
                 continue
@@ -428,15 +346,9 @@ jobs:
               mkdir -p "$folder_name"
               mv "${spec_dir}/spec.json" "${folder_name}/"
               
-              # Validate moved file
-              jq empty "${folder_name}/spec.json" || {
-                echo "ERROR: Invalid JSON in ${folder_name}/spec.json"
-                exit 1
-              }
+              jq empty "${folder_name}/spec.json" || { echo "ERROR: Invalid JSON"; exit 1; }
             fi
           done
-          
-          # Clean up specs directory
           rm -rf specs
 
       - name: Create schema subfolder and clone repository
@@ -444,21 +356,18 @@ jobs:
           for folder_name in v*; do
             if [[ -d "$folder_name" && "$folder_name" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "Processing schema for: $folder_name"
-              
               mkdir -p "${folder_name}/schema"
               
-              # Clone with depth 1 for efficiency
               if git clone --depth 1 https://github.com/yannh/kubernetes-json-schema.git "tmp-${folder_name}" 2>/dev/null; then
-                # Only copy if the version directory exists in the schema repo
                 if [[ -d "tmp-${folder_name}/${folder_name}" ]]; then
                   cp -r "tmp-${folder_name}/${folder_name}/"* "${folder_name}/schema/"
                   echo "Schema copied for ${folder_name}"
                 else
-                  echo "WARNING: No schema found for ${folder_name} in kubernetes-json-schema"
+                  echo "WARNING: No schema found for ${folder_name}"
                 fi
                 rm -rf "tmp-${folder_name}"
               else
-                echo "WARNING: Failed to clone kubernetes-json-schema for ${folder_name}"
+                echo "WARNING: Failed to clone kubernetes-json-schema"
               fi
             fi
           done
@@ -469,10 +378,8 @@ jobs:
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          
           git add .
           
-          # Only commit if there are changes
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
