@@ -23,40 +23,40 @@ jobs:
       - name: Fetch and process versions
         id: fetch_data_versions
         run: |
-          # Fetch the list of releases
-          versions=$(curl -s https://api.github.com/repos/kubernetes/kubernetes/releases \
-                      | jq -r '.[] | select(.prerelease == false and .draft == false) | .tag_name' \
-                      | grep '^v[0-9]\+\.[0-9]\+' | head -3)
-
-          # Fallback if no versions are fetched
-          if [[ -z "$versions" ]]; then
-            echo "No versions fetched, setting default values."
-            versions="v1.28.2 v1.27.5 v1.26.9"
-          fi
-
-          # Debugging
-          echo "Fetched versions: $versions"
-
-          # Write to versions.txt for debugging
-          echo "$versions" > versions.txt
-
-          # Convert newline-separated list to JSON array
-          mapfile -t version_array < versions.txt
-          json_array=$(printf '%s\n' "${version_array[@]}" | jq -R . | jq -s .)
-
-          # Validate JSON array
-          echo "$json_array" | jq . || { echo "Error: Invalid JSON array"; exit 1; }
-
-          # Trim any leading/trailing whitespace from the JSON array
-          json_array=$(echo "$json_array" | sed 's/^[ \t]*//;s/[ \t]*$//')
-
-          # Ensure the JSON is compact and has no trailing commas
+          # Fetch MANY releases (we must compute minors ourselves)
+          versions=$(curl -s "https://api.github.com/repos/kubernetes/kubernetes/releases?per_page=100" \
+            | jq -r '.[] 
+                | select(.prerelease == false and .draft == false) 
+                | .tag_name' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$')
+      
+          # Build: minor -> highest patch
+          declare -A latest_patch
+      
+          for v in $versions; do
+            minor=$(echo "$v" | cut -d. -f1,2)     # v1.35
+            patch=$(echo "$v" | cut -d. -f3)       # 0
+            patch=${patch#v}
+      
+            if [[ -z "${latest_patch[$minor]}" ]] || \
+               (( ${patch} > ${latest_patch[$minor]} )); then
+              latest_patch[$minor]=$patch
+            fi
+          done
+      
+          # Reconstruct full versions, sort by minor desc, take top 3
+          final_versions=$(for m in "${!latest_patch[@]}"; do
+            echo "${m}.${latest_patch[$m]}"
+          done | sort -Vr | head -3)
+      
+          echo "Selected Kubernetes versions:"
+          echo "$final_versions"
+      
+          # Convert to JSON array
+          json_array=$(printf '%s\n' $final_versions | jq -R . | jq -s .)
           json_array=$(echo "$json_array" | jq -c .)
-
-          # Wrap the array with the desired key structure
+      
           final_output=$(echo "{\"kubernetes-version\": $json_array}")
-
-          # Write the JSON object to GITHUB_OUTPUT
           echo "versions_array=$final_output" >> $GITHUB_OUTPUT
 
   manage_folder_versions:
