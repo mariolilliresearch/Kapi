@@ -16,7 +16,7 @@ permissions:
 
 # Environment variables for pinned dependency versions
 env:
-  CRI_DOCKERD_VERSION: "0.3.17"
+  CRI_DOCKERD_VERSION: "0.3.22"
   MINIKUBE_VERSION: "1.35.0"
 
 jobs:
